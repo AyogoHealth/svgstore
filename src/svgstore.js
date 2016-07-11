@@ -4,8 +4,8 @@ var assign = require('object-assign');
 var cheerio = require('cheerio');
 
 var ATTRIBUTE_ID = 'id';
-var ATTRIBUTE_VIEW_BOX = 'viewBox';
 
+var SELECTOR_ALL = '*';
 var SELECTOR_DEFS = 'defs';
 var SELECTOR_SVG = 'svg';
 
@@ -17,17 +17,18 @@ var TEMPLATE_DOCTYPE = '<?xml version="1.0" encoding="UTF-8"?>' +
 
 var DEFAULT_OPTIONS = {
 	cleanDefs: false,
-	cleanObjects: false
+	cleanObjects: false,
+	keepAttributes: true
 };
 
 function load(text) {
 	return cheerio.load(text, {xmlMode: true});
 }
 
-function clean($, el, attrs) {
+function cleanAttributes($, el, attrs) {
 	var localAttrs = attrs;
 
-	if (typeof localAttrs === 'boolean') {
+	if (localAttrs && typeof localAttrs === 'boolean') {
 		localAttrs = ['style'];
 	}
 
@@ -35,10 +36,32 @@ function clean($, el, attrs) {
 		return el;
 	}
 
-	el.find('*').each(function (i, el) {
+	el.find(SELECTOR_ALL).each(function (i, el) {
 		localAttrs.forEach(function (attr) {
 			$(el).removeAttr(attr);
 		});
+	});
+
+	return el;
+}
+
+function cloneAttributes(a, b, attrs) {
+	var localAttrs = attrs;
+
+	if (localAttrs && typeof localAttrs === 'boolean') {
+		localAttrs = ['aria-labeledby', 'role', 'viewBox'];
+	}
+
+	if (!localAttrs || !localAttrs.length) {
+		return el;
+	}
+
+	localAttrs.forEach(function (attr) {
+		var value = a.attr(attr);
+
+		if (typeof value !== 'undefined') {
+			b.attr(attr, value);
+		}
 	});
 
 	return el;
@@ -56,19 +79,19 @@ function svgstore(options) {
 
 		add: function (id, file, options) {
 			var child = load(file);
-			var childOptions = assign({}, parentOptions, options);
-
 			var childSvg = child(SELECTOR_SVG);
 			var childDefs = child(SELECTOR_DEFS);
 			var childSymbol = child(TEMPLATE_SYMBOL);
 
+			var childOptions = assign({}, parentOptions, options);
 			var cleanDefs = childOptions.cleanDefs;
 			var cleanObjects = childOptions.cleanObjects;
+			var keepAttributes = childOptions.keepAttributes;
 
 			// clean and merge <defs/>
 
 			if (cleanDefs) {
-				clean(child, childDefs, cleanDefs);
+				cleanAttributes(child, childDefs, cleanDefs);
 			}
 
 			parentDefs.append(childDefs.contents());
@@ -77,14 +100,19 @@ function svgstore(options) {
 			// clean and clone <svg/> as <symbol/>
 
 			if (cleanObjects) {
-				clean(child, childSvg, cleanObjects);
+				cleanAttributes(child, childSvg, cleanObjects);
 			}
 
-			childSymbol.attr(ATTRIBUTE_ID, id);
-			childSymbol.attr(ATTRIBUTE_VIEW_BOX, childSvg.attr(ATTRIBUTE_VIEW_BOX));
+			childSymbol.attr(ATTRIBUTE_ID, id || childSvg.attr(ATTRIBUTE_ID));
+
+			if (keepAttributes) {
+				cloneAttributes(childSvg, childSymbol, keepAttributes);
+			}
+
 			childSymbol.append(childSvg.contents());
 
-			// append <symbol/>
+			// append <symbol/> to parent
+
 			parentSvg.append(childSymbol);
 
 			return this;

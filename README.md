@@ -39,6 +39,7 @@ See the [examples directory](https://github.com/shannonmoeller/svgstore/tree/mas
 - `options` `{Object}`
   - `cleanDefs` `{Boolean|Array}` (default: `false`) Remove `style` attributes from SVG definitions, or a list of attributes to remove.
   - `cleanObjects` `{Boolean|Array}` (default: `false`) Remove `style` attributes from SVG objects, or a list of attributes to remove.
+  - `copyAttributes` `{Boolean|Array}` (default: `true`) Copy `aria-labeledby`, `role`, and `viewBox` attributes, or a list of attributes to copy.
 
 Creates a container svg sprites document.
 
